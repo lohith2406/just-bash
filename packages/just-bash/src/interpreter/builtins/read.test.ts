@@ -153,5 +153,16 @@ describe("read builtin", () => {
       expect(result.stdout).toBe("2 한글\n4 café\n2 漢字\n");
       expect(result.stderr).toBe("");
     });
+
+    it("should keep text read from a descriptor unchanged", async () => {
+      const env = new Bash();
+      const result = await env.exec(`
+        read -u 3 A 3<<<"Ã©"
+        read B 3<<<"Ã©" <&3
+        echo "\${#A} \${#B}"
+      `);
+      expect(result.stdout).toBe("2 2\n");
+      expect(result.stderr).toBe("");
+    });
   });
 });

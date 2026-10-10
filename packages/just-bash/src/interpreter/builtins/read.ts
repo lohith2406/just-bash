@@ -334,7 +334,7 @@ export function handleRead(
 
     // With -N, assign entire content to first variable (no IFS splitting)
     const varName = varNames[0] || "REPLY";
-    ctx.state.env.set(varName, decodeBytesToUtf8(unsafeBytesFromLatin1(line)));
+    ctx.state.env.set(varName, line);
     // Set remaining variables to empty
     for (let j = 1; j < varNames.length; j++) {
       ctx.state.env.set(varNames[j], "");
@@ -457,8 +457,15 @@ export function handleRead(
     consumeInput(consumed);
   }
 
-  // stdin holds one char per byte; decode so multibyte characters become single chars
-  line = decodeBytesToUtf8(unsafeBytesFromLatin1(line));
+  // Piped stdin holds one char per byte, so decode it into text. Input taken
+  // from a descriptor (`-u N`, `<&N`, or a group fed by `<&N`) is already text.
+  const fromDescriptor =
+    readsFromFd ||
+    stdinSourceFd >= 0 ||
+    (!stdin && (ctx.state.groupStdinSourceFd ?? -1) >= 0);
+  if (!fromDescriptor) {
+    line = decodeBytesToUtf8(unsafeBytesFromLatin1(line));
+  }
 
   // Remove trailing newline if present and delimiter is newline
   if (effectiveDelimiter === "\n" && line.endsWith("\n")) {
