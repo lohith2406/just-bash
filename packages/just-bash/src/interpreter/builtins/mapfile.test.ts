@@ -30,5 +30,16 @@ describe("mapfile builtin", () => {
       expect(result.stdout).toBe("2\n");
       expect(result.stderr).toBe("");
     });
+
+    it("should decode UTF-8 after stdin is redirected with exec", async () => {
+      const env = new Bash({ files: { "/in.txt": "한글\ncafé\n" } });
+      const result = await env.exec(`
+        exec < /in.txt
+        mapfile -t A
+        echo "\${#A[0]} \${#A[1]}"
+      `);
+      expect(result.stdout).toBe("2 4\n");
+      expect(result.stderr).toBe("");
+    });
   });
 });

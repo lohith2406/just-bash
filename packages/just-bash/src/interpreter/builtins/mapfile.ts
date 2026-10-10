@@ -92,10 +92,11 @@ export function handleMapfile(
   let skipped = 0;
   const maxArrayElements = ctx.limits.maxArrayElements;
 
-  // Piped stdin holds one char per byte, so each line is decoded into text.
-  // Input taken from a descriptor (`<&N`, or a group fed by `<&N`) is already text.
+  // Stdin (pipes, redirects, and fd 0 itself) holds one char per byte, so each
+  // line is decoded into text. Input taken from a numbered descriptor (`<&N`
+  // with N > 0, or a group fed by one) is already text.
   const fromDescriptor =
-    stdinSourceFd >= 0 || (!stdin && (ctx.state.groupStdinSourceFd ?? -1) >= 0);
+    stdinSourceFd > 0 || (!stdin && (ctx.state.groupStdinSourceFd ?? -1) > 0);
 
   const pushLine = (line: string): void => {
     const bytes = fromDescriptor ? utf8ByteLength(line) : line.length;
