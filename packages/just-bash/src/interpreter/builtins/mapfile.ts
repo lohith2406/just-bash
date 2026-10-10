@@ -29,6 +29,7 @@ export function handleMapfile(
   ctx: InterpreterContext,
   args: string[],
   stdin: string,
+  stdinSourceFd = -1,
 ): ExecResult {
   // Parse options
   let delimiter = "\n";
@@ -91,14 +92,22 @@ export function handleMapfile(
   let skipped = 0;
   const maxArrayElements = ctx.limits.maxArrayElements;
 
+  // Piped stdin holds one char per byte, so each line is decoded into text.
+  // Input taken from a descriptor (`<&N`, or a group fed by `<&N`) is already text.
+  const fromDescriptor =
+    stdinSourceFd >= 0 || (!stdin && (ctx.state.groupStdinSourceFd ?? -1) >= 0);
+
   const pushLine = (line: string): void => {
-    if (utf8ByteLength(line) > ctx.limits.maxStringLength) {
+    const bytes = fromDescriptor ? utf8ByteLength(line) : line.length;
+    if (bytes > ctx.limits.maxStringLength) {
       throw new ExecutionLimitError(
         `mapfile: string length limit exceeded (${ctx.limits.maxStringLength} bytes)`,
         "string_length",
       );
     }
-    lines.push(decodeBytesToUtf8(unsafeBytesFromLatin1(line)));
+    lines.push(
+      fromDescriptor ? line : decodeBytesToUtf8(unsafeBytesFromLatin1(line)),
+    );
   };
 
   while (cursor < effectiveStdin.length) {
