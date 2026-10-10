@@ -164,5 +164,35 @@ describe("read builtin", () => {
       expect(result.stdout).toBe("2 2\n");
       expect(result.stderr).toBe("");
     });
+
+    it("should count whole characters with -N", async () => {
+      const env = new Bash();
+      const result = await env.exec(`
+        printf "éx" | { read -N 1 A; read -N 1 B; echo "\${#A} $A \${#B} $B"; }
+      `);
+      expect(result.stdout).toBe("1 é 1 x\n");
+      expect(result.stderr).toBe("");
+    });
+
+    it("should count whole characters with -n", async () => {
+      const env = new Bash();
+      const result = await env.exec(`
+        echo "한글x" | { read -n 2 A; echo "\${#A} $A"; }
+      `);
+      expect(result.stdout).toBe("2 한글\n");
+      expect(result.stderr).toBe("");
+    });
+
+    it("should decode UTF-8 after stdin is redirected with exec", async () => {
+      const env = new Bash({ files: { "/in.txt": "한글\ncafé\n" } });
+      const result = await env.exec(`
+        exec < /in.txt
+        read A
+        read B
+        echo "\${#A} \${#B}"
+      `);
+      expect(result.stdout).toBe("2 4\n");
+      expect(result.stderr).toBe("");
+    });
   });
 });
