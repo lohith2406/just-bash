@@ -183,6 +183,24 @@ describe("read builtin", () => {
       expect(result.stderr).toBe("");
     });
 
+    it("should count an invalid byte as one character with -n and -N", async () => {
+      const env = new Bash({
+        files: {
+          // 0xff never starts a character; 0xe2 does, but x is no continuation
+          "/ff.bin": new Uint8Array([0xff, 0x78, 0x79, 0x7a]),
+          "/e2.bin": new Uint8Array([0xe2, 0x78, 0x79, 0x7a]),
+        },
+      });
+      const result = await env.exec(`
+        { read -n 1 A; read -n 1 B; echo "$B"; } < /ff.bin
+        { read -N 1 A; read -N 1 B; echo "$B"; } < /ff.bin
+        cat /ff.bin | { read -n 1 A; read -n 1 B; echo "$B"; }
+        { read -n 1 A; read -n 1 B; echo "$B"; } < /e2.bin
+      `);
+      expect(result.stdout).toBe("x\nx\nx\nx\n");
+      expect(result.stderr).toBe("");
+    });
+
     it("should decode UTF-8 after stdin is redirected with exec", async () => {
       const env = new Bash({ files: { "/in.txt": "한글\ncafé\n" } });
       const result = await env.exec(`

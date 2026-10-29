@@ -289,15 +289,20 @@ export function handleRead(
   const toText = (value: string): string =>
     inputIsBytes ? decodeBytesToUtf8(unsafeBytesFromLatin1(value)) : value;
   // Number of input chars in the character starting at `pos`. A UTF-8 lead
-  // byte gives the sequence length, so -n/-N never split a character.
+  // byte gives the sequence length, so -n/-N never split a character. An
+  // invalid sequence counts as one byte, so it never eats the bytes after it.
   const charLengthAt = (pos: number): number => {
     if (!inputIsBytes) return 1;
     const lead = effectiveStdin.charCodeAt(pos);
     let length = 1;
-    if (lead >= 0xf0 && lead <= 0xf7) length = 4;
-    else if (lead >= 0xe0) length = 3;
-    else if (lead >= 0xc0) length = 2;
-    return Math.min(length, effectiveStdin.length - pos);
+    if (lead >= 0xf0 && lead <= 0xf4) length = 4;
+    else if (lead >= 0xe0 && lead <= 0xef) length = 3;
+    else if (lead >= 0xc2 && lead <= 0xdf) length = 2;
+    for (let i = 1; i < length; i++) {
+      const next = effectiveStdin.charCodeAt(pos + i);
+      if (!(next >= 0x80 && next <= 0xbf)) return 1;
+    }
+    return length;
   };
 
   // Get input
